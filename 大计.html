@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>大学计算机基础 - 智能刷题本 (带解析版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background-color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .option-btn {
+            transition: all 0.2s ease;
+        }
+        .option-btn:active {
+            transform: scale(0.98);
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col h-[90vh] md:h-[80vh]">
+        
+        <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shadow-md z-10">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-graduation-cap text-xl"></i>
+                <h1 class="font-bold text-lg tracking-wide">计算机基础刷题</h1>
+            </div>
+            <div class="text-sm bg-indigo-500 px-3 py-1 rounded-full border border-indigo-400">
+                <span id="mode-badge">智能模式</span>
+            </div>
+        </div>
+
+        <div class="w-full bg-gray-200 h-2">
+            <div id="progress-bar" class="bg-green-500 h-2 transition-all duration-500" style="width: 0%"></div>
+        </div>
+
+        <div id="content-area" class="flex-1 overflow-y-auto p-6 relative">
+            
+            <div id="welcome-screen" class="h-full flex flex-col justify-center items-center text-center space-y-8 fade-in">
+                <div class="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-4 shadow-inner">
+                    <i class="fas fa-book-reader text-4xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">准备好通过考试了吗？</h2>
+                    <p class="text-gray-500 px-8">本题库包含 <span id="total-count" class="font-bold text-indigo-600">0</span> 道精选试题。</p>
+                    <p class="text-sm text-orange-500 mt-2 font-medium"><i class="fas fa-redo-alt mr-1"></i> 错题自动重现机制已开启</p>
+                    <p id="resume-text" class="text-sm text-green-600 mt-2 font-medium hidden"><i class="fas fa-save mr-1"></i> 已检测到上次进度，可继续练习</p>
+                </div>
+                
+                <div class="flex flex-col space-y-4 w-full max-w-xs">
+                    <button id="start-btn" onclick="startQuiz()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95 text-lg w-full">
+                        开始刷题
+                    </button>
+                    
+                    <button id="restart-btn" onclick="confirmRestart()" class="hidden text-gray-400 hover:text-red-500 text-sm font-medium transition underline decoration-dotted">
+                        清除进度，重新开始
+                    </button>
+                </div>
+            </div>
+
+            <div id="quiz-screen" class="hidden h-full flex flex-col fade-in">
+                <div class="flex justify-between text-sm text-gray-500 mb-4 font-medium">
+                    <span>剩余: <span id="remaining-count" class="text-indigo-600">0</span> 题</span>
+                    <span class="text-red-500 hidden" id="wrong-flag"><i class="fas fa-exclamation-circle"></i> 错题重练中</span>
+                </div>
+
+                <div class="flex-1">
+                    <div class="mb-6">
+                        <span id="q-type" class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded mb-2 border border-gray-300">单选题</span>
+                        <h3 id="question-text" class="text-xl font-bold text-gray-800 leading-relaxed">
+                            题目加载中...
+                        </h3>
+                    </div>
+
+                    <div id="options-container" class="space-y-3">
+                        </div>
+                </div>
+
+                <div id="feedback-area" class="hidden mt-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                    <div id="feedback-content"></div>
+                    <button id="next-btn" onclick="nextQuestion()" class="w-full mt-4 bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-lg shadow transition">
+                        下一题 <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="result-screen" class="hidden h-full flex flex-col justify-center items-center text-center space-y-6 fade-in">
+                <div class="text-6xl text-green-500 mb-2">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-800">太棒了！</h2>
+                <p class="text-gray-600 text-lg">你已经完成了所有题目！</p>
+                <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm w-full max-w-sm">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-500">累计答题</span>
+                        <span id="stat-total" class="font-bold text-gray-800">0</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-500">初次做错</span>
+                        <span id="stat-wrong" class="font-bold text-red-500">0</span>
+                    </div>
+                </div>
+                <button onclick="resetAndRestart()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg mt-4">
+                    再刷一遍
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- 核心题库数据 (已添加通俗解释) ---
+        const rawQuestions = [
+            // === 判断题 (试卷部分) ===
+            { q: "发送电子邮件可以是文字，也可以是图片。", type: "判断题", a: "对", explanation: "现在的邮件不仅能写字，还能加附件（图片、文档等），就像寄信可以夹照片一样。" },
+            { q: "接入 Internet 的计算机的 IP 地址不唯一。", type: "判断题", a: "错", explanation: "IP地址就像你家的门牌号。如果两家人门牌号一样，快递（数据）就送错地方了，所以必须唯一。" },
+            { q: "接入 Internet 的计算机不一定都有 IP 地址。", type: "判断题", a: "错", explanation: "没有IP地址就等于没有收货地址，别人找不到你，你也发不出东西，所以必须有。" },
+            { q: "在 Internet 上，若将一个电子邮件同时发送到多个地址时，电子邮件地址之间可使用分号分隔。", type: "判断题", a: "对", explanation: "就像群发短信一样，中间用分号隔开就能一次发给好多人。" },
+            { q: "TCP 是可靠的传输层协议。", type: "判断题", a: "对", explanation: "TCP像打电话，必须接通（握手）才能说话，说完了要确认听到；UDP像寄明信片，发出去就不管了。所以TCP是可靠的。" },
+            { q: "从 FTP 服务器上拷贝文件至自己的计算机上，称为“下载”文件。", type: "判断题", a: "对", explanation: "往服务器传叫“上传”（Upload），从服务器拿叫“下载”（Download）。" },
+            { q: "集线器 (HUB) 属于网络物理层设备。", type: "判断题", a: "对", explanation: "集线器比较“傻”，它只负责把电流信号广播出去，不识别数据内容，所以属于最底层的物理层。" },
+            { q: "分组交换中，用户数据被划分为若干“组”。", type: "判断题", a: "对", explanation: "就像搬家，东西太多不能一次搬完，要打包成一个个小箱子（分组）运输。" },
+            { q: "报文交换实现事先不建立物理线路。", type: "判断题", a: "对", explanation: "报文交换是“存储-转发”模式，像邮政系统，走到一站存一站，不需要像打电话那样一直占着一条线。" },
+            { q: "星型结构的网络采用的是广播式的传播方式。", type: "判断题", a: "错", explanation: "星型结构（比如用交换机）通常是点对点的，我想发给你，数据就只去你那，不吵别人；总线型才是广播式（大喇叭喊）。" },
+            { q: "OSI 层次的划分应当从逻辑上将功能分开，越少越好。", type: "判断题", a: "错", explanation: "分层是为了清晰，该分几层分几层（OSI分了7层），不是越少越好，太少会导致每一层太复杂。" },
+            { q: "网络适配器（网卡）是将计算机与网络连接起来的器件。", type: "判断题", a: "对", explanation: "没有网卡，电脑就没法插网线或者连WiFi，它是电脑和网络的翻译官。" },
+            { q: "双绞线不仅可以传输数字信号，而且也可以传输模拟信号。", type: "判断题", a: "对", explanation: "双绞线就是常见的网线/电话线，它既能传电脑的0101（数字），也能传电话的声音（模拟）。" },
+            { q: "LAN 和 WAN 的主要区别是通信距离和传输速率。", type: "判断题", a: "对", explanation: "LAN是局域网（比如一个机房），WAN是广域网（比如跨国网络），主要区别就是范围大小和速度。" },
+            { q: "在使用搜索引擎的过程中，如果搜索的关键字和搜索类型搭配不当，将达不到搜索的效果。", type: "判断题", a: "对", explanation: "就像去图书馆找书，如果你想找《西游记》却在“食谱区”找，那肯定找不到。" },
+            { q: "程序设计主要有面向文本设计技术和面向对象的设计技术。", type: "判断题", a: "对", explanation: "目前主流就是面向过程（C语言为代表）和面向对象（Java/Python/C++为代表）。" },
+            { q: "所有联网计算机必须使用统一的操作系统。", type: "判断题", a: "错", explanation: "你的iPhone（iOS）可以给我的安卓（Android）发微信，也可以访问Windows服务器的网页。只要遵守网络协议（TCP/IP），系统可以不同。" },
+            { q: "数据库系统其实就是一个应用软件。", type: "判断题", a: "错", explanation: "数据库系统(DBS)是一个大家族，包含了数据库(数据本身)、数据库管理系统(DBMS，这是系统软件)、管理员和应用软件。" },
+            { q: "三级模式结构也就是从逻辑上对数据库的组织从内到外进行的3个层次描述。", type: "判断题", a: "对", explanation: "内模式（怎么存）、模式（逻辑结构）、外模式（用户看），这是数据库的三层皮。" },
+            { q: "三级模式间存在三个映射关系。", type: "判断题", a: "对", explanation: "有了映射，改了里面的结构，外面的程序不用大改，保证了数据的独立性。" },
+            { q: "DBMS 不需要操作系统的支持就可以实现其功能。", type: "判断题", a: "错", explanation: "DBMS（如MySQL）是运行在操作系统（如Windows/Linux）上的软件，没有操作系统它跑不起来。" },
+            { q: "用二维表来表示实体之间联系的模型称为网状模型。", type: "判断题", a: "错", explanation: "二维表（行和列）是“关系模型”，网状模型像一张复杂的网，层次模型像一棵树。" },
+            { q: "在 E-R 图中，用来表示属性的图形是椭圆形。", type: "判断题", a: "对", explanation: "记住：矩形代表实体（人），菱形代表关系（买），椭圆代表属性（名字、价格）。" },
+            { q: "关系模型是目前最常用的数据模型。", type: "判断题", a: "对", explanation: "现在的Excel、MySQL、Oracle都是基于关系模型（表格）的，因为它最简单直观。" },
+            { q: "属性的取值范围称为属性的域。", type: "判断题", a: "对", explanation: "比如“性别”这个属性，它的域就是{男，女}，不能填“飞机”。" },
+            { q: "同类实体的集合称为实体型。", type: "判断题", a: "对", explanation: "所有的“学生”汇集在一起，构成了学生这个实体型。" },
+            { q: "关系数据库模型的3个要素分别为数据增加、数据修改、数据查询。", type: "判断题", a: "错", explanation: "三要素是：结构（表长啥样）、操作（增删改查）、约束（比如年龄不能是负数）。" },
+            { q: "数据表的关键字用于唯一标识一个记录，每个表必须具有一个关键字，主关键字只能由一个字段组成。", type: "判断题", a: "对", explanation: "关键字（主键）就像身份证号，必须唯一。虽然技术上主键可以由多个字段拼成（复合主键），但本题库语境下通常认为是对的。" },
+            { q: "关系数据库是用树结构来表示实体之间的联系的。", type: "判断题", a: "错", explanation: "树结构是层次模型，关系数据库用的是“二维表”。" },
+            { q: "关系表中的每一行称作为一个元组，每一列称为属性。", type: "判断题", a: "对", explanation: "行=记录=元组；列=字段=属性。" },
+            { q: "E-R 图是由实体、联系和属性 3 要素组成。", type: "判断题", a: "对", explanation: "Entity-Relationship Diagram，就是画实体、属性和它们之间的关系。" },
+            { q: "数据库设计包括两个方面的设计内容，它们是内模式设计和物理设计。", type: "判断题", a: "错", explanation: "设计流程通常是：需求分析 -> 概念设计(E-R图) -> 逻辑设计 -> 物理设计。" },
+            { q: "在 E-R 图中，用来表示实体的图形是菱形，用来表示属性的图形是椭圆形。", type: "判断题", a: "错", explanation: "实体是矩形（长方形），菱形是用来表示“联系”的。" },
+            { q: "数据库通常被划分为用户视图和物理视图。", type: "判断题", a: "对", explanation: "用户视图是你看到的（外模式），物理视图是硬盘上怎么存的（内模式）。" },
+            { q: "通过浏览器访问网站时看到的第一个页面，称为该网站的主页或首页。", type: "判断题", a: "对", explanation: "Home Page，就是进门看到的第一张脸。" },
+            { q: "一个网站有许多相互链接的网页组成，网站的初始网页称为主页。", type: "判断题", a: "对", explanation: "同上，index.html通常就是主页。" },
+            { q: "为网络提供共享资源并对这些资源进行管理的计算机称为工作站。", type: "判断题", a: "错", explanation: "提供服务的叫“服务器”（Server），干活用的普通电脑叫“工作站”或“客户机”。" },
+            { q: "在计算机网络中，WAN 代表的是局域网，LAN 代表的是局域网。", type: "判断题", a: "错", explanation: "WAN (Wide Area Network) 是广域网；LAN (Local Area Network) 是局域网。" },
+            { q: "Internet 网提供的电子邮件的英文术语是 E-mail。", type: "判断题", a: "对", explanation: "Electronic Mail，电子信件。" },
+            { q: "所谓互联网，是指同种或者异种网络及其产品相互连接。", type: "判断题", a: "对", explanation: "互联网就是把各种不同品牌、不同类型的电脑和网络连成一个大网。" },
+            
+            // === 选择题 (综合精选) ===
+            { q: "最早记载圆周率并推动计算工具发展的数学家是：", type: "单选题", options: ["刘徽", "祖冲之", "徐岳", "杨辉"], a: "B", explanation: "祖冲之算出了圆周率在3.1415926和3.1415927之间，是当时世界的最高成就。" },
+            { q: "世界上第一台电子计算机诞生于哪一年？", type: "单选题", options: ["1941年", "1946年", "1949年", "1950年"], a: "B", explanation: "1946年，ENIAC在美国宾夕法尼亚大学诞生，是个重达30吨的大胖子。" },
+            { q: "世界上首次提出存储程序计算机体系结构的是：", type: "单选题", options: ["莫奇莱", "艾仑·图灵", "乔治·布尔", "冯·诺依曼"], a: "D", explanation: "冯·诺依曼提出了“存储程序”原理，现在的电脑基本都叫“冯·诺依曼机”。" },
+            { q: "世界上第一台电子数字计算机采用的主要逻辑部件是：", type: "单选题", options: ["电子管", "晶体管", "继电器", "光电管"], a: "A", explanation: "第一代电脑用电子管（像灯泡一样大）；第二代晶体管；第三代集成电路；第四代超大规模集成电路。" },
+            { q: "用计算机管理科技情报资料，是计算机在 ___ 方面的应用。", type: "单选题", options: ["科学计算", "数据处理", "实时控制", "人工智能"], a: "B", explanation: "管理资料、档案、图书，都属于“处理数据”的范畴，不涉及复杂的数学公式计算（科学计算）。" },
+            { q: "最能反映计算机主要功能的是：", type: "单选题", options: ["计算机可以代替人的脑力劳动", "计算机可以存储大量信息", "计算机是一种信息处理机", "计算机可以实现高速度的运算"], a: "C", explanation: "计算机的核心本质就是输入信息，处理信息，输出结果，所以是“信息处理机”。" },
+            { q: "第一款商用计算机是：", type: "单选题", options: ["ENIAC", "EDVAC", "MARK-1", "UNIVAC"], a: "D", explanation: "ENIAC是第一台，但它是军用的；UNIVAC是第一台卖给公司（商业）用的。" },
+            { q: "用一个字节最多能编出 ___ 不同的码。", type: "单选题", options: ["8个", "16个", "128个", "256个"], a: "D", explanation: "一个字节有8位（8 bit），每一位可以是0或1，所以能组合出 2的8次方 = 256 种状态。" },
+            { q: "R进制下，每一位数的可能取值范围是：", type: "单选题", options: ["0 ~ R", "0 ~ R-1", "1 ~ R", "1 ~ R-1"], a: "B", explanation: "比如10进制，每一位只能是0到9，不能是10；2进制只能是0到1。所以是 0 到 R-1。" },
+            { q: "十进制数 27 对应的二进制数为：", type: "单选题", options: ["1011", "1100", "10111", "11011"], a: "D", explanation: "11011 = 16 + 8 + 0 + 2 + 1 = 27。" },
+            { q: "计算机内部信息的表示及存储往往采用二进制形式，主要原因是：", type: "单选题", options: ["计算方式简单", "表示形式单一", "避免与十进制相混淆", "与逻辑电路硬件相适应"], a: "D", explanation: "电脑是用电的，电路只有“通”和“断”（高电平和低电平）两种状态，刚好对应1和0，最容易实现。" },
+            { q: "计算机信息计量单位中的 1KB 代表：", type: "单选题", options: ["102", "2^10", "10^3", "2^8"], a: "B", explanation: "在计算机里，K代表 2的10次方，也就是1024，不是1000。" },
+            { q: "将十进制数 93 转换为二进制数为：", type: "单选题", options: ["1011101", "1010111", "1011001", "1101111"], a: "A", explanation: "可以用“除2取余法”算，或者拼凑法：64+16+8+4+1=93，对应位填1。" },
+            { q: "用 1、2、4、8 克砝码组合称重物体，最多能称多少种不同重量？", type: "单选题", options: ["15种", "31种", "63种", "127种"], a: "A", explanation: "这是二进制的原理。1,2,4,8 正好是2的0,1,2,3次方。全加起来是15。也就是能表示1到15之间的任意整数。" },
+            { q: "微型计算机中普遍使用的西文字符编码是：", type: "单选题", options: ["BCD码", "拼音码", "补码", "ASCII码"], a: "D", explanation: "ASCII码是美国标准信息交换码，用来表示英文字母、数字和符号。" },
+            { q: "执行二进制算术加法 10101010 + 00101010，其结果是：", type: "单选题", options: ["11010100", "11010010", "10101010", "00101010"], a: "A", explanation: "逢二进一。倒数第二位 1+1=10，向左进一位。" },
+            { q: "执行逻辑加(或)运算 10101010 V 01001010，其结果是：", type: "单选题", options: ["11110100", "11101010", "10001010", "11100000"], a: "B", explanation: "逻辑加就是“或”运算（V），规则是：只要有一个是1，结果就是1。上下对齐看，有1就填1。" },
+            { q: "下列描述中，正确的是：", type: "单选题", options: ["1KB = 1024 * 1024Bytes", "1MB = 1024 * 1024Bytes", "1KB = 1024MB", "1MB = 1024Bytes"], a: "B", explanation: "1MB (兆) = 1024 KB，而 1KB = 1024 Bytes，所以 1MB = 1024 * 1024 Bytes。" },
+            { q: "计算机中数据的表示形式是：", type: "单选题", options: ["八进制", "十进制", "二进制", "十六进制"], a: "C", explanation: "电脑只认识0和1，所以内部全是二进制。十六进制只是为了让人类看二进制时方便一点（缩短长度）。" },
+            { q: "浮点数之所以能表示很大或很小的数，是因为使用了：", type: "单选题", options: ["较多的字节", "较长的尾数", "阶码", "符号位"], a: "C", explanation: "浮点数像科学计数法（比如 1.2 x 10^9）。“阶码”就是那个指数部分（^9），它决定了数的范围（大小）；“尾数”决定了精度。" },
+            { q: "下列关于字符之间大小关系的说法中，正确的是：", type: "单选题", options: ["空格 > b > B", "空格 > B > b", "b > B > 空格", "B > b > 空格"], a: "C", explanation: "ASCII码顺序：小写字母(a=97) > 大写字母(A=65) > 数字(0=48) > 空格(32)。所以 b > B > 空格。" },
+            { q: "对同一幅照片采用以下格式存储时，占用存储空间最大的格式是：", type: "单选题", options: ["JPG", "TIF", "BMP", "GIF"], a: "C", explanation: "BMP是位图，几乎不压缩，每个像素都老老实实存，所以最大。JPG是有损压缩，GIF只有256色，都比较小。" },
+            { q: "下列叙述中正确的是：", type: "单选题", options: ["一个逻辑数据结构只能有一种存储结构", "数据的逻辑结构属于线性结构，存储结构属于非线性结构", "一个逻辑数据结构可以有多种存储结构", "一个逻辑数据结构可以有多种存储结构，但影响处理效率"], a: "D", explanation: "比如“排队（线性表）”是逻辑结构，你可以用“数组（顺序存储）”实现，也可以用“链表（链式存储）”实现。不同的实现方式，增删改查的速度不一样。" },
+            { q: "扩展名为 .MOV 的文件通常是一个：", type: "单选题", options: ["音频文件", "视频文件", "图片文件", "文本文件"], a: "B", explanation: ".MOV是苹果公司开发的视频格式，就是电影（Movie）。" },
+            { q: "从逻辑上可以把数据结构分为 ___ 两大类。", type: "单选题", options: ["动态结构、静态结构", "顺序结构、链式结构", "线性结构、非线性结构", "初等结构、构造型结构"], a: "C", explanation: "逻辑上分：线性的（排队）和非线性的（树、网）。顺序和链式是“存储结构”。" },
+            { q: "用链表表示线性表的优点是：", type: "单选题", options: ["便于随机存取", "花费的存储空间比顺序表少", "便于插入与删除", "数据元素的物理顺序与逻辑顺序相同"], a: "C", explanation: "链表像铁链，想在中间加一个环，把扣子解开加进去就行，不需要移动其他人。数组（顺序表）想插队，后面的人都得往后挪。" },
+            { q: "线性表采用链式存储时，节点的存储地址：", type: "单选题", options: ["必须是不连续的", "连续与否均可", "必须是连续的", "和头节点的存储地址相连续"], a: "B", explanation: "链表通过指针连起来，物理上在哪里无所谓，可以连续也可以东一个西一个。" },
+            { q: "栈和队列的共同点是：", type: "单选题", options: ["都是先进先出", "都是先进后出", "没有共同点", "只允许在端点处插入和删除元素"], a: "D", explanation: "栈是“死胡同”（一头进出），队列是“排队通道”（一头进一头出）。共同点是都受限制，只能在端点操作，不能在中间随便插。" },
+            { q: "对于栈操作数据的原则是：", type: "单选题", options: ["先进先出", "后进先出", "后进后出", "不分顺序"], a: "B", explanation: "栈就像洗盘子，最后放上去的盘子，最先被拿走洗掉（LIFO - Last In First Out）。" },
+            { q: "树最适合用来表示：", type: "单选题", options: ["有序数据元素", "无序数据元素", "元素之间无联系的数据", "元素之间具有分支层次关系的数据"], a: "D", explanation: "树结构本来就是用来表示像家谱、目录结构这种“分层、分支”关系的。" },
+            { q: "下列叙述正确的是：", type: "单选题", options: ["世界上第一台电子计算机ENIAC首次实现了“存储程序”方案", "按照计算机的规模，人们把计算机的发展过程分为四个时代", "微型计算机最早出现于第三代计算机中", "冯·诺依曼提出的计算机体系结构奠定了现代计算机的结构理论基础"], a: "D", explanation: "A错在ENIAC没实现存储程序（是EDVAC实现的）；B错在是按“元件”分时代；C错在微机出现在第四代。" },
+            { q: "下列关于图灵机的说法中，错误的是：", type: "单选题", options: ["现代计算机的功能不可能超过图灵机", "图灵机不可能计算的问题现代计算机也不能计算", "图灵机是真空电子管机器", "只有图灵机能解决的计算问题，实际计算机才能解决"], a: "C", explanation: "图灵机是一个数学上的“思想模型”，不是一台真正造出来的机器，所以它不是电子管做的。" },
+            { q: "___ 是现代通用计算机的雏形。", type: "单选题", options: ["宾州大学于1946年研制成功的ENIAC", "查尔斯·巴贝奇于1934年设计的分析机", "冯·诺依曼和他的同事们研制的EDVAC", "艾兰·图灵建立的图灵机模型"], a: "C", explanation: "EDVAC是第一台采用冯·诺依曼结构（存储程序）的计算机，现代电脑都是这个结构的徒子徒孙。" },
+            { q: "顺序表中删除第 i 个元素，需向前移动的元素个数是：", type: "单选题", options: ["n-i", "n-i+1", "n-i-1", "i"], a: "A", explanation: "比如5个数，删第3个，第4和第5个都要往前挪，所以移动 5-3=2 个。公式就是 n-i。" },
+            { q: "微型计算机硬件系统的性能主要取决于：", type: "单选题", options: ["微处理器", "内存储器", "显示适配卡", "硬磁盘存储器"], a: "A", explanation: "微处理器（CPU）是电脑的大脑，大脑越强，性能越强。" },
+            { q: "微处理器处理的数据基本单位为字。一个字的长度通常是：", type: "单选题", options: ["16bit", "32bit", "64bit", "与微处理器芯片的型号有关"], a: "D", explanation: "以前有16位CPU，现在流行64位CPU，字长取决于CPU型号。" },
+            { q: "一个完整的计算机系统应包括：", type: "单选题", options: ["系统硬件和系统软件", "硬件系统和软件系统", "主机和外部设备", "主机、键盘、显示器和辅助存储器"], a: "B", explanation: "计算机系统 = 硬件（躯壳） + 软件（灵魂）。" },
+            { q: "计算机字长取决于 ___ 的宽度。", type: "单选题", options: ["控制总线", "数据总线", "地址总线", "通信总线"], a: "B", explanation: "字长就是CPU一次能搬运多少数据，这取决于“路”有多宽，也就是数据总线的宽度。" },
+            { q: "计算机之所以能实现自动连续运算，是由于采用了 ___ 原理。", type: "单选题", options: ["布尔逻辑", "存储程序", "数字电路", "集成电路"], a: "B", explanation: "因为程序事先存好了，CPU只要按顺序一条条读指令去执行，不用人盯着，这就是“存储程序”原理。" },
+            { q: "微型计算机中，存取速度最快的是：", type: "单选题", options: ["高速缓冲存储器(Cache)", "磁盘存储器", "光盘存储器", "内存储器"], a: "A", explanation: "速度排名：寄存器 > Cache > 内存 > 硬盘/光盘。Cache是为了缓解CPU太快而内存太慢的矛盾。" },
+            { q: "下列设备中，属于输出设备的是：", type: "单选题", options: ["扫描仪", "显示器", "触摸屏", "光笔"], a: "B", explanation: "显示器是给你看的（输出）；扫描仪、光笔是给电脑输入的；触摸屏通常算输入输出设备，但单选题选最典型的显示器。" },
+            { q: "下列设备中，属于输入设备的是：", type: "单选题", options: ["声音合成器", "激光打印机", "光笔", "显示器"], a: "C", explanation: "光笔用来在屏幕上画画或选择，是往电脑里送信号的。" },
+            { q: "配置高速缓冲存储器是为了解决：", type: "单选题", options: ["主机与外设之间速度不匹配问题", "CPU与辅助存储器之间速度不匹配问题", "CPU与内存储器之间速度不匹配问题", "CPU与内存存储器之间速度不匹配问题"], a: "C", explanation: "CPU跑得太快，内存跟不上，Cache就像CPU随身带的小笔记本，记着常用的东西，省得每次都去翻内存这个大书包。" },
+            { q: "下列存储器中，断电后信息将会丢失的是：", type: "单选题", options: ["ROM", "RAM", "CD-ROM", "磁盘存储器"], a: "B", explanation: "RAM（内存）像黑板，断电（放学）就被擦干静了；ROM和硬盘像书，断电字也在。" },
+            { q: "磁盘存储器存、取信息的“最基本单位”是：", type: "单选题", options: ["字节", "字长", "扇区", "磁道"], a: "C", explanation: "硬盘读写数据不是一个字一个字读的，而是一块一块读的，这一块就叫“扇区”。" },
+            { q: "20根地址线的寻址范围可达：", type: "单选题", options: ["512KB", "1024KB", "640KB", "4096KB"], a: "B", explanation: "2的20次方 = 1MB = 1024KB。如果是10根线就是1KB，20根就是1MB，30根就是1GB。" },
+            { q: "机器指令由 ___ 组成。", type: "单选题", options: ["国标码和机内码", "操作码和内码", "操作码和操作数地址", "ASCII码和BCD码"], a: "C", explanation: "指令就两句话：1. 干什么（操作码，比如加法）；2. 对谁干（操作数地址）。" },
+            { q: "存储器中存放的信息可以是数据，也可以是指令，这要根据 ___ 来判别。", type: "单选题", options: ["最高位是0还是1", "存储单元的地址", "CPU执行程序的过程", "ASCII码表"], a: "C", explanation: "在内存里，数据和指令长得一样（都是0101）。CPU取指令阶段取出来的就是指令，执行阶段取出来的就是数据。" },
+            { q: "下列打印机中，打印效果最佳的一种是：", type: "单选题", options: ["点阵打印机", "激光打印机", "热敏打印机", "喷墨打印机"], a: "B", explanation: "激光打印机字迹清晰，像印刷出来的一样，适合打文档。" },
+            { q: "CPU 不能直接访问的存储器是：", type: "单选题", options: ["ROM", "RAM", "Cache", "光盘"], a: "D", explanation: "CPU只能直接访问内存（ROM/RAM/Cache）。光盘、硬盘是外存，数据必须先加载到内存，CPU才能用。" },
+            { q: "微型计算机中，控制器的基本功能是：", type: "单选题", options: ["存储各种控制信息", "传输各种控制信号", "产生各种控制信息", "控制系统各部件正确地执行程序"], a: "D", explanation: "控制器就像指挥官，负责指挥各个部件协调工作。" },
+            { q: "属 RAM 特点的是：", type: "单选题", options: ["可随机读写数据，且断电后数据不会丢失", "可随机读写数据，断电后数据将全部丢失", "只能顺序读写数据，断电后数据将部分丢失", "只能顺序读写数据，且断电后数据将全部丢失"], a: "B", explanation: "RAM（Random Access Memory）= 随机存取存储器，特点就是：随便读写，断电就没。" },
+            { q: "在微型计算机中，运算器和控制器合称为：", type: "单选题", options: ["逻辑部件", "算术运算部件", "中央处理器", "算术和逻辑部件"], a: "C", explanation: "CPU（中央处理器）= 运算器（算账）+ 控制器（指挥）。" },
+            { q: "完整的计算机系统由 ___ 组成。", type: "单选题", options: ["运算器、控制器、存储器、输入设备和输出设备", "主机和外部设备", "硬件系统和软件系统", "主机箱、显示器、键盘、鼠标、打印机"], a: "C", explanation: "老生常谈：系统 = 硬件 + 软件。" },
+            { q: "在微型计算机中，ROM 是：", type: "单选题", options: ["顺序读写存储器", "随机读写存储器", "只读存储器", "高速缓冲存储器"], a: "C", explanation: "ROM (Read Only Memory) = 只读存储器。" },
+            { q: "关于硬件系统和软件系统的概念，下列叙述不正确的是：", type: "单选题", options: ["计算机硬件系统的基本功能是接受计算机程序...", "软件系统建立在硬件系统的基础上...", "没有装配软件系统的计算机不能做任何工作", "一台计算机只要装入系统软件后，即可进行文字处理或数据处理工作"], a: "D", explanation: "系统软件（如Windows）只是个平台，要处理文字还需要“应用软件”（如Word）。" },
+            { q: "计算机的三类总线中，不包括：", type: "单选题", options: ["控制总线", "地址总线", "传输总线", "数据总线"], a: "C", explanation: "三大总线：数据（运货）、地址（认路）、控制（指挥）。没有“传输总线”这个标准叫法。" },
+            { q: "任何程序都必须加载到 ___ 中才能被 CPU 执行。", type: "单选题", options: ["磁盘", "硬盘", "内存", "外存"], a: "C", explanation: "CPU是个急性子，只跟内存打交道，不直接理硬盘。" },
+            { q: "在计算机上插 U 盘的接口通常是 ___ 标准接口。", type: "单选题", options: ["UPS", "PS/2", "UBS", "USB"], a: "D", explanation: "USB (Universal Serial Bus) 通用串行总线。" },
+            { q: "组成计算机的 CPU 的两大部件是：", type: "单选题", options: ["运算器和控制器", "控制器和寄存器", "运算器和内存", "控制器和内存"], a: "A", explanation: "CPU = 运算器 + 控制器。" },
+            { q: "微型计算机的内存容量主要指 ___ 的容量。", type: "单选题", options: ["RAM", "ROM", "CMOS", "Cache"], a: "A", explanation: "我们平时说电脑“16G内存”，指的就是RAM条的大小。" },
+            { q: "微型计算机中，运算器的主要功能是进行：", type: "单选题", options: ["逻辑运算", "算术运算", "算术运算和逻辑运算", "复杂方程的求解"], a: "C", explanation: "运算器ALU，既能算加减乘除（算术），也能算与或非（逻辑）。" },
+            { q: "微型计算机采用总线结构连接 CPU、内存储器和外部设备，总线由三部分组成，它包括：", type: "单选题", options: ["数据总线、传输总线和通信总线", "地址总线、逻辑总线和信号总线", "控制总线、地址总线和运算总线", "数据总线、地址总线和控制总线"], a: "D", explanation: "记住：数据、地址、控制。" },
+            { q: "以下软件中，___ 不是操作系统软件。", type: "单选题", options: ["Windows", "Android", "Linux", "Microsoft Office"], a: "D", explanation: "Office是办公用的应用软件，不是操作系统。" },
+            { q: "操作系统的功能是：", type: "单选题", options: ["处理机管理、存储器管理、设备管理、文件管理", "运算器管理、控制器管理、打印机管理、磁盘管理", "硬盘管理、软盘管理、存储器管理、文件管理", "程序管理、文件管理、编译管理、设备管理"], a: "A", explanation: "操作系统管天管地：管CPU（处理机）、管内存、管设备、管文件。" },
+            { q: "Windows 的目录结构采用的是：", type: "单选题", options: ["树形结构", "线形结构", "层次结构", "网状结构"], a: "A", explanation: "文件夹套文件夹，像树枝分叉一样，所以是树形结构。" },
+            { q: "将回收站中的文件还原时，被还原的文件将回到：", type: "单选题", options: ["桌面上", "“我的文档”中", "内存中", "被删除的位置"], a: "D", explanation: "哪儿来的回哪儿去。" },
+            { q: "在 Windows 的窗口菜单中，若某命令项后面有向右的黑三角，则表示该命令项：", type: "单选题", options: ["有下级子菜单", "单击鼠标可直接执行", "双击鼠标可直接执行", "右击鼠标可直接执行"], a: "A", explanation: "三角形意味着“后面还有内容”，即子菜单。" },
+            { q: "Windows 的剪贴板是用于临时存放信息的：", type: "单选题", options: ["窗口", "文件夹", "内存区间", "磁盘区间"], a: "C", explanation: "复制粘贴的时候，东西是存在内存里的，所以重启电脑剪贴板就空了。" },
+            { q: "对处于还原状态的 Windows 应用程序窗口，不能实现的操作是：", type: "单选题", options: ["最小化", "最大化", "移动", "旋转"], a: "D", explanation: "窗口不能“旋转”，又不是手机屏幕。" },
+            { q: "下列文件中属于压缩文件的是：", type: "单选题", options: ["fit.exe", "trans.doc", "test.rar", "map.htm"], a: "C", explanation: ".rar 和 .zip 是最常见的压缩包格式。" },
+            { q: "新建文档时，Word 默认的字体和字号分别是：", type: "单选题", options: ["黑体、3号", "楷体、4号", "等线、5号/宋体、5号", "仿宋、6号"], a: "C", explanation: "老版本Word默认是宋体5号，新版本（如2016+）通常是等线5号。选项C涵盖了这两种情况。" },
+            { q: "Winrar 是运行在：", type: "单选题", options: ["DOS操作系统下的解压缩软件", "UNIX操作系统下的解压缩软件", "Windows操作系统下的解压缩软件", "所有操作系统下的解压缩软件"], a: "C", explanation: "WinRAR，名字里的Win就暗示了它是Windows下的软件。" },
+            { q: "第一次保存 Word 文档时，系统将打开 ___ 对话框。", type: "单选题", options: ["保存", "另存为", "新建", "关闭"], a: "B", explanation: "第一次保存，电脑不知道你要存哪、叫什么名字，所以会弹出“另存为”让你选。" },
+            { q: "在 Word 表格中，位于第三行第四列的单元格名称是：", type: "单选题", options: ["3:4", "4:3", "D3", "C4"], a: "C", explanation: "Excel和Word表格通常列用字母（A,B,C,D...），行用数字。第四列是D，第三行是3，所以是D3。" },
+            { q: "Word 编辑文档时，所见即所得的视图是：", type: "单选题", options: ["普通视图", "页面视图", "大纲视图", "Web 视图"], a: "B", explanation: "页面视图能看到纸张边缘、页眉页脚，打印出来什么样，屏幕上就什么样。" },
+            { q: "Excel 单元格中计算一组数据后出现 ########，这是由于：", type: "单选题", options: ["单元格显示宽度不够", "计算数据出错", "计算机公式出错", "数据格式出错"], a: "A", explanation: "井号表示“太挤了”，数字太长格子太窄显示不下。把列拉宽一点就好了。" },
+            { q: "若在 Excel 的同一单元格中输入的文本有两个段落，则在第一段落输完后应使用 ___ 键。", type: "单选题", options: ["Enter", "Ctrl+Enter", "Alt+Enter", "Shift+Enter"], a: "C", explanation: "Excel里直接按Enter是换到下一个格子，想在格子里换行要按 Alt+Enter（强制换行）。" },
+            { q: "用 PowerPoint 制作的演示文稿默认的扩展名是：", type: "单选题", options: ["xlsx", "ppt / pptx", "ppn", "potx"], a: "B", explanation: "ppt/pptx 是PowerPoint的招牌后缀。" },
+            { q: "计算机能直接识别和处理的语言是：", type: "单选题", options: ["汇编语言", "自然语言", "机器语言", "高级语言"], a: "C", explanation: "机器语言就是一堆0和1，电脑只能看懂这个。其他语言都要“翻译”。" },
+            { q: "用 C++ 语言编写的程序需要用 ___ 程序翻译后计算机才能识别。", type: "单选题", options: ["汇编", "编译", "解释", "连接"], a: "B", explanation: "C++是高级语言，需要“编译器”把它一次性翻译成机器语言（生成exe文件）。" },
+            { q: "用 Python 语言编写的程序需要用 ___ 程序翻译后计算机才能识别。", type: "单选题", options: ["汇编", "编译", "解释", "连接"], a: "C", explanation: "Python是解释型语言，有个“解释器”一句一句读，读一句做一句。" },
+            { q: "可被计算机直接执行的程序由 ___ 语言编写的程序。", type: "单选题", options: ["机器", "汇编", "高级", "网络"], a: "A", explanation: "只有机器语言（010101）不需要翻译，直接执行。" },
+            { q: "导致软件危机的根本原因不包括：", type: "单选题", options: ["软件需求频繁变更", "开发方法不当", "硬件性能不足", "项目管理混乱"], a: "C", explanation: "软件危机是因为软件太复杂、管理跟不上，跟硬件性能没关系（硬件发展反而是超前的）。" },
+            { q: "以下不属于软件危机的典型表现是：", type: "单选题", options: ["用户满意度低", "软件可维护性差", "软件需求明确", "软件成本逐年上升"], a: "C", explanation: "如果“软件需求明确”，那就不会危机了。危机恰恰是因为需求经常变、不明确。" },
+            { q: "算法的三种基本逻辑结构中不包括：", type: "单选题", options: ["逻辑结构", "选择结构", "循环结构", "顺序结构"], a: "A", explanation: "编程三剑客：顺序（一条路）、选择（分叉路）、循环（绕圈圈）。“逻辑结构”是大类名称，不是具体结构。" },
+            { q: "一个算法应该是：", type: "单选题", options: ["程序", "问题求解步骤的描述", "要满足五个基本属性", "A和C"], a: "B", explanation: "算法是解决问题的思路和步骤，程序是算法的代码实现。" },
+            { q: "排序方法中...称为：", type: "单选题", options: ["希尔排序", "冒泡排序", "插入排序", "选择排序"], a: "C", explanation: "像摸扑克牌一样，摸一张插到合适的位置，这就是“插入排序”。" },
+            { q: "算法指的是：", type: "单选题", options: ["计算机程序", "解决问题的计算方法", "排序算法", "解决问题的有限运算序列"], a: "B", explanation: "标准定义：算法是解决特定问题的一系列步骤（有限运算序列）。" },
+            { q: "与数据元素本身的形式、内容、相对位置、个数无关的是数据的：", type: "单选题", options: ["存储结构", "逻辑结构", "算法", "操作"], a: "B", explanation: "逻辑结构只关心“谁和谁有关系”，不关心它们住在内存的哪里。" },
+            { q: "递归函数的执行特点是：", type: "单选题", options: ["并行执行", "函数调用自身", "仅使用循环结构", "无需终止条件"], a: "B", explanation: "递归就是“自己调用自己”，比如算阶乘 f(n) = n * f(n-1)。" },
+            { q: "二分查找算法要求数据必须：", type: "单选题", options: ["无序", "随机存储", "有序", "动态变化"], a: "C", explanation: "二分查找像猜数字游戏（大了？小了？），前提是数据必须已经排好序了，不然没法猜。" },
+            { q: "算法的有穷性是指：", type: "单选题", options: ["必须包含输出", "每个步骤可执行", "步骤数量有限", "输入输出明确"], a: "C", explanation: "有穷性 = 有限。算法不能陷入死循环，必须在有限步内结束。" },
+            { q: "关系数据库中的数据逻辑结构是：", type: "单选题", options: ["层次结构", "树形结构", "网状结构", "二维表格"], a: "D", explanation: "关系数据库 = 二维表格（Excel那样的）。" },
+            { q: "最终对用户使用的数据视图称为：", type: "单选题", options: ["内模式", "外模式", "概念模式", "存储模式"], a: "B", explanation: "外模式是给用户看的（比如你看到的网页界面），内模式是给机器存的。" },
+            { q: "DB、DBMS 和 DBS 三者之间的关系是：", type: "单选题", options: ["DB 包括 DBMS 和 DBS", "DBS 包括 DB 和 DBMS", "DBMS 包括 DB 和 DBS", "不能相互包括"], a: "B", explanation: "DBS（数据库系统）是最大的概念，包含DB（数据库）和DBMS（管理软件）。" },
+            { q: "对数据库物理存储方式的描述称为：", type: "单选题", options: ["外模式", "内模式", "概念模式", "逻辑模式"], a: "B", explanation: "内模式 = 物理存储，描述数据在硬盘上怎么躺着。" },
+            { q: "将 E-R 模型转换成关系模型，属于数据库设计的：", type: "单选题", options: ["需求分析", "概念设计", "逻辑设计", "物理设计"], a: "C", explanation: "画E-R图是概念设计；把图变成表（关系模型）是逻辑设计。" },
+            { q: "在 DBS 中，DBMS 和 OS 之间的关系是：", type: "单选题", options: ["相互调用", "DBMS 调用 OS", "OS 调用 DBMS", "并发运行"], a: "B", explanation: "DBMS（软件）要读写硬盘，必须请求OS（操作系统）帮忙，所以是DBMS调用OS。" },
+            { q: "公司中有多个部门和多名职员，每个职员只能属于一个部门，一个部门可以有多名职员，从职员到部门的联系类型是：", type: "单选题", options: ["多对多", "一对一", "多对一", "一对多"], a: "C", explanation: "如果你看“部门 -> 职员”，是一对多；但题目问的是“职员 -> 部门”，多个职员对应一个部门，所以是多对一。" },
+            { q: "关系数据模型的基本数据结构是：", type: "单选题", options: ["树", "图", "索引", "关系(二维表)"], a: "D", explanation: "关系模型的核心就是那张表。" },
+            { q: "在 Internet 中 IPv4 的 IP 地址由 ___ 位二进制数组成。", type: "单选题", options: ["128", "16", "32", "64"], a: "C", explanation: "IPv4是32位（比如 192.168.1.1）；IPv6才是128位。" },
+            { q: "关系笛卡尔积 R × S 表示：", type: "单选题", options: ["R 为关系名，S 为属性名", "R 和 S 均为属性名", "R 为属性名，S 为关系名", "R 和 S 均为关系名"], a: "D", explanation: "笛卡尔积是两个集合（关系）的乘积，所以R和S都是关系名（表名）。" },
+            { q: "用以太网形式构成的局域网，其拓扑结构为：", type: "单选题", options: ["环型", "总线型", "星型", "树型"], a: "B", explanation: "传统的以太网（用同轴电缆）是总线型。虽然现在用交换机像星型，但从逻辑和早期定义看，以太网对应总线型。" },
+            { q: "在浏览器地址栏中输入的 “http://www.njust.edu.cn/” 中，http 代表的是：", type: "单选题", options: ["协议", "主机", "地址", "资源"], a: "A", explanation: "HTTP (HyperText Transfer Protocol) 超文本传输协议。" },
+            { q: "在 Internet 上用于收发电子邮件的协议是：", type: "单选题", options: ["TCP/IP", "IPX/SPX", "POP3/SMTP", "NetBEUI"], a: "C", explanation: "SMTP（发送）、POP3（接收）是邮件的标准协议。" },
+            { q: "在 Internet 上广泛使用的 WWW 是一种：", type: "单选题", options: ["网络模式", "网络主机", "网络服务器", "浏览服务模式"], a: "D", explanation: "WWW (World Wide Web) 万维网，是一种基于超文本的浏览服务模式。" },
+            { q: "在描述信息传输中 bps 表示的是每秒传输的：", type: "单选题", options: ["字节数", "指令数", "字数", "位数"], a: "D", explanation: "bps = bits per second，每秒比特数（位数）。注意是小写b（bit），不是大写B（Byte）。" },
+            { q: "计算机网络最突出的优势是：", type: "单选题", options: ["信息流通", "数据传送", "资源共享", "降低费用"], a: "C", explanation: "联网最大的好处就是你有的我能用，我有的你能用（硬件、软件、数据共享）。" },
+            { q: "E-mail 是指：", type: "单选题", options: ["利用计算机网络及时地向特定对象传送文字、声音、图像或图形的一种通信方式", "电报、电话、电传等通信方式", "无线和有线的总称", "报文的传送"], a: "A", explanation: "定义题，Email就是网络信件。" },
+            { q: "一个计算机网络组成包括：", type: "单选题", options: ["传输介质和通信设备", "通信子网和资源子网", "用户计算机和终端", "主机和通信处理机"], a: "B", explanation: "逻辑上分两部分：通信子网（负责传数据）和资源子网（负责处理数据）。" },
+            { q: "下列各项中，不能作为 IP 地址的是：", type: "单选题", options: ["202.96.0.1", "202.110.257.12", "112.254.23.8", "159.222.1.18"], a: "B", explanation: "IP地址的每一段最大只能是255。这里出现了257，明显超标了。" },
+            { q: "在计算机网络中，以下 ___ 拓扑结构中所有节点都连接到一个中央节点。", type: "单选题", options: ["总线型拓扑", "星型拓扑", "环型拓扑", "网状拓扑"], a: "B", explanation: "星型就像一个海星，中间一个核心（交换机），四周连着电脑。" },
+            { q: "防火墙通常位于 ___ 两个网络之间。", type: "单选题", options: ["内部网络和外部网络", "局域网和广域网", "互联网和企业内部网络", "无线网络和有线网络"], a: "A", explanation: "防火墙是看大门的，挡在内网（家里）和外网（大街）之间。" },
+            { q: "从本质上讲，计算机病毒是一种：", type: "单选题", options: ["细菌", "文本", "程序", "微生物"], a: "C", explanation: "病毒就是一段坏代码，是人为编写的程序，不是真的生物。" },
+            { q: "发现微型计算机染有病毒后，较为彻底的清除方法是：", type: "单选题", options: ["用查毒软件处理", "用杀毒软件处理", "删除磁盘文件", "重新格式化磁盘"], a: "D", explanation: "格式化就是把房子推平了重建，最彻底，但也最暴力（数据全没了）。" },
+            { q: "下列关于防火墙的说法正确的是：", type: "单选题", options: ["防火墙的安全性能是根据系统安全的要求而设置的", "防火墙的安全性能是一致的", "防火墙不能把内部网络隔离为可信任网络", "防火墙只能限制互联网对内部网络的访问"], a: "A", explanation: "防火墙的规则是人设定的，想严就严，想松就松。" },
+            { q: "用一个字节最多能编出 ___ 不同的码。", type: "单选题", options: ["8个", "16个", "128个", "256个"], a: "D", explanation: "重复题，2的8次方 = 256。" },
+            { q: "汉字的拼音输入码属于汉字的：", type: "单选题", options: ["外码", "内码", "ASCII码", "标准码"], a: "A", explanation: "你输入的拼音是给电脑看的“外码”（输入码），电脑存的汉字是“内码”。" },
+            { q: "在 Windows 中，为结束陷入死循环的程序，应首先按的键是：", type: "单选题", options: ["Ctrl+Alt+Del", "Ctrl+Del", "Alt+Del", "Del"], a: "A", explanation: "这是调出任务管理器的大招，专门对付卡死的程序。" }
+        ];
+
+        // --- 应用状态 & LocalStorage Key ---
+        const STORAGE_KEY = 'computer_basics_quiz_progress_v1';
+        let queue = rawQuestions.map((_, index) => index);
+        let currentQuestionIndex = null;
+        let stats = { total: rawQuestions.length, answered: 0, wrong: 0 };
+        let firstTimeWrongIds = new Set();
+        let isWrongMode = false;
+
+        // --- DOM 元素 ---
+        const elApp = document.getElementById('app');
+        const elWelcome = document.getElementById('welcome-screen');
+        const elQuiz = document.getElementById('quiz-screen');
+        const elResult = document.getElementById('result-screen');
+        const elQuestionText = document.getElementById('question-text');
+        const elOptionsContainer = document.getElementById('options-container');
+        const elFeedbackArea = document.getElementById('feedback-area');
+        const elFeedbackContent = document.getElementById('feedback-content');
+        const elProgressBar = document.getElementById('progress-bar');
+        const elRemainingCount = document.getElementById('remaining-count');
+        const elQType = document.getElementById('q-type');
+        const elWrongFlag = document.getElementById('wrong-flag');
+        const elStartBtn = document.getElementById('start-btn');
+        const elResumeText = document.getElementById('resume-text');
+        const elRestartBtn = document.getElementById('restart-btn');
+
+        // --- 初始化：检查进度 ---
+        document.getElementById('total-count').innerText = rawQuestions.length;
+        if (loadProgress()) {
+            elStartBtn.innerText = `继续刷题 (已答 ${stats.answered} 题)`;
+            elResumeText.classList.remove('hidden');
+            elRestartBtn.classList.remove('hidden');
+        }
+
+        // --- 核心逻辑 ---
+
+        function startQuiz() {
+            elWelcome.classList.add('hidden');
+            elQuiz.classList.remove('hidden');
+            nextQuestion();
+        }
+
+        // 保存进度
+        function saveProgress() {
+            const state = {
+                queue: queue,
+                stats: stats,
+                firstTimeWrongIds: Array.from(firstTimeWrongIds),
+                currentQuestionIndex: currentQuestionIndex
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        // 加载进度
+        function loadProgress() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    queue = parsed.queue;
+                    stats = parsed.stats;
+                    firstTimeWrongIds = new Set(parsed.firstTimeWrongIds);
+                    
+                    if (parsed.currentQuestionIndex !== null && parsed.currentQuestionIndex !== undefined) {
+                        queue.unshift(parsed.currentQuestionIndex);
+                    }
+                    return true;
+                } catch (e) {
+                    console.error("Failed to load progress", e);
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        function clearProgress() {
+            localStorage.removeItem(STORAGE_KEY);
+            queue = rawQuestions.map((_, index) => index);
+            stats = { total: rawQuestions.length, answered: 0, wrong: 0 };
+            firstTimeWrongIds = new Set();
+            currentQuestionIndex = null;
+        }
+
+        function confirmRestart() {
+            if(confirm("确定要清除当前进度并重新开始吗？")) {
+                clearProgress();
+                location.reload();
+            }
+        }
+        
+        function resetAndRestart() {
+             clearProgress();
+             location.reload();
+        }
+
+        function updateProgress() {
+            const progress = (stats.answered / (stats.answered + queue.length)) * 100;
+            elProgressBar.style.width = `${progress}%`;
+            elRemainingCount.innerText = queue.length;
+        }
+
+        function nextQuestion() {
+            elFeedbackArea.classList.add('hidden');
+            elOptionsContainer.innerHTML = '';
+            elOptionsContainer.classList.remove('pointer-events-none'); 
+
+            if (queue.length === 0) {
+                showResult();
+                clearProgress(); 
+                return;
+            }
+
+            currentQuestionIndex = queue.shift();
+            saveProgress();
+
+            const q = rawQuestions[currentQuestionIndex];
+
+            elQuestionText.innerText = `${stats.answered + 1}. ${q.q}`;
+            elQType.innerText = q.type;
+            
+            if (q.type === '判断题') {
+                renderOption('对', q);
+                renderOption('错', q);
+            } else {
+                q.options.forEach((opt, idx) => {
+                    const char = String.fromCharCode(65 + idx); 
+                    renderOption(char, q, opt);
+                });
+            }
+
+            updateProgress();
+        }
+
+        function renderOption(val, qData, textContent = null) {
+            const btn = document.createElement('button');
+            btn.className = "option-btn w-full text-left p-4 rounded-xl border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 text-gray-700 font-medium text-lg flex items-center shadow-sm";
+            
+            const displayHTML = textContent 
+                ? `<span class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 font-bold flex items-center justify-center mr-3 flex-shrink-0">${val}</span><span>${textContent}</span>`
+                : `<span class="font-bold">${val}</span>`;
+
+            btn.innerHTML = displayHTML;
+            btn.onclick = () => checkAnswer(btn, val, qData);
+            elOptionsContainer.appendChild(btn);
+        }
+
+        function checkAnswer(btn, userVal, qData) {
+            elOptionsContainer.classList.add('pointer-events-none');
+            
+            const isCorrect = userVal === qData.a;
+            
+            if (isCorrect) {
+                // --- 答对逻辑 ---
+                btn.classList.remove('bg-white', 'border-gray-200');
+                btn.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                btn.querySelector('span:first-child')?.classList.add('bg-green-200', 'text-green-700');
+                
+                elFeedbackContent.innerHTML = `<div class="text-green-600 font-bold"><i class="fas fa-check-circle"></i> 回答正确！</div>`;
+                elFeedbackArea.classList.remove('hidden');
+                
+                stats.answered++;
+                currentQuestionIndex = null;
+                saveProgress();
+                
+                setTimeout(() => {
+                    nextQuestion();
+                }, 800);
+
+            } else {
+                // --- 答错逻辑 ---
+                btn.classList.remove('bg-white', 'border-gray-200');
+                btn.classList.add('bg-red-100', 'border-red-500', 'text-red-800', 'shake');
+                btn.querySelector('span:first-child')?.classList.add('bg-red-200', 'text-red-700');
+
+                stats.wrong++;
+                firstTimeWrongIds.add(currentQuestionIndex);
+                elWrongFlag.classList.remove('hidden');
+
+                // 错题重现
+                queue.push(currentQuestionIndex);
+                currentQuestionIndex = null;
+                saveProgress();
+
+                // 标记正确答案
+                const allBtns = elOptionsContainer.querySelectorAll('button');
+                allBtns.forEach(b => {
+                    if (qData.type === '判断题') {
+                         if (b.innerText.includes(qData.a)) {
+                             b.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                         }
+                    } else {
+                        if (b.querySelector('span')?.innerText === qData.a) {
+                            b.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                        }
+                    }
+                });
+
+                // --- 解析显示逻辑 (修改部分) ---
+                let explanationHTML = '';
+                
+                // 优先显示新的通俗解析
+                if (qData.explanation) {
+                    explanationHTML = `
+                        <div class="mt-3 p-3 bg-indigo-50 rounded-lg text-indigo-800 border border-indigo-100 leading-relaxed text-sm">
+                            <i class="fas fa-lightbulb text-yellow-500 mr-1"></i> 
+                            <span class="font-bold">通俗解析：</span>${qData.explanation}
+                        </div>`;
+                } else if (qData.desc) {
+                    // 兼容旧的简单描述
+                    explanationHTML = `<p class="text-sm text-gray-600 mt-2">${qData.desc}</p>`;
+                }
+
+                elFeedbackContent.innerHTML = `
+                    <div class="text-red-600 font-bold mb-1"><i class="fas fa-times-circle"></i> 回答错误</div>
+                    <div class="text-gray-800">正确答案是：<span class="font-bold text-lg mx-1">${qData.a}</span></div>
+                    ${explanationHTML}
+                    <div class="text-xs text-orange-500 mt-2 bg-orange-50 p-2 rounded border border-orange-200">
+                        <i class="fas fa-history"></i> 此题已自动加入待复习队列，稍后会再次出现。
+                    </div>
+                `;
+                elFeedbackArea.classList.remove('hidden');
+                document.getElementById('next-btn').focus();
+            }
+        }
+
+        function showResult() {
+            elQuiz.classList.add('hidden');
+            elResult.classList.remove('hidden');
+            
+            document.getElementById('stat-total').innerText = stats.answered;
+            document.getElementById('stat-wrong').innerText = firstTimeWrongIds.size;
+        }
+
+    </script>
+</body>
+</html>
